@@ -1,0 +1,257 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <sstream>
+#include <fstream>
+#include <cmath>
+
+// Forward declarations
+class DialogueManager;
+class SentimentAnalyzer;
+class NLPProcessor;
+
+// Natural Language Processing component
+class NLPProcessor {
+private:
+    std::map<std::string, std::vector<std::string>> synonyms;
+    std::vector<std::string> stopWords;
+
+public:
+    NLPProcessor() {
+        loadStopWords();
+        initializeSynonyms();
+    }
+
+    std::vector<std::string> tokenize(const std::string& input) {
+        std::vector<std::string> tokens;
+        std::stringstream ss(input);
+        std::string token;
+        
+        while (ss >> token) {
+            // Convert to lowercase
+            std::transform(token.begin(), token.end(), token.begin(), ::tolower);
+            // Remove punctuation
+            token.erase(std::remove_if(token.begin(), token.end(), ::ispunct), token.end());
+            if (!token.empty()) {
+                tokens.push_back(token);
+            }
+        }
+        return tokens;
+    }
+
+    std::vector<std::string> removeStopWords(const std::vector<std::string>& tokens) {
+        std::vector<std::string> filteredTokens;
+        for (const auto& token : tokens) {
+            if (std::find(stopWords.begin(), stopWords.end(), token) == stopWords.end()) {
+                filteredTokens.push_back(token);
+            }
+        }
+        return filteredTokens;
+    }
+
+private:
+    void loadStopWords() {
+        stopWords = {"the", "is", "at", "which", "on", "a", "an", "and", "or", "but"};
+    }
+
+    void initializeSynonyms() {
+        synonyms["happy"] = {"glad", "joyful", "pleased"};
+        synonyms["sad"] = {"unhappy", "disappointed", "upset"};
+        // Add more synonyms as needed
+    }
+};
+
+// Sentiment Analysis component
+class SentimentAnalyzer {
+private:
+    std::map<std::string, double> sentimentScores;
+
+public:
+    SentimentAnalyzer() {
+        initializeSentimentScores();
+    }
+
+    double analyzeSentiment(const std::vector<std::string>& tokens) {
+        double totalScore = 0.0;
+        int wordCount = 0;
+
+        for (const auto& token : tokens) {
+            if (sentimentScores.find(token) != sentimentScores.end()) {
+                totalScore += sentimentScores[token];
+                wordCount++;
+            }
+        }
+
+        return wordCount > 0 ? totalScore / wordCount : 0.0;
+    }
+
+private:
+    void initializeSentimentScores() {
+        // Positive words
+        sentimentScores["good"] = 1.0;
+        sentimentScores["great"] = 1.5;
+        sentimentScores["excellent"] = 2.0;
+        sentimentScores["happy"] = 1.0;
+        
+        // Negative words
+        sentimentScores["bad"] = -1.0;
+        sentimentScores["terrible"] = -2.0;
+        sentimentScores["sad"] = -1.0;
+        sentimentScores["angry"] = -1.5;
+    }
+};
+
+// Dialogue Management component
+class DialogueManager {
+private:
+    std::map<std::string, std::vector<std::string>> responses;
+    std::vector<std::string> conversationHistory;
+    int maxHistorySize;
+
+public:
+    DialogueManager() : maxHistorySize(10) {
+        initializeResponses();
+    }
+
+    std::string getResponse(const std::vector<std::string>& tokens, double sentiment) {
+        // Check for greeting patterns
+        if (isGreeting(tokens)) {
+            return getRandomResponse("greetings");
+        }
+
+        // Check for farewell patterns
+        if (isFarewell(tokens)) {
+            return getRandomResponse("farewells");
+        }
+
+        // Generate response based on sentiment
+        if (sentiment > 0.5) {
+            return getRandomResponse("positive");
+        } else if (sentiment < -0.5) {
+            return getRandomResponse("negative");
+        }
+
+        // Default response for neutral or unrecognized input
+        return getRandomResponse("default");
+    }
+
+    void addToHistory(const std::string& message) {
+        conversationHistory.push_back(message);
+        if (conversationHistory.size() > maxHistorySize) {
+            conversationHistory.erase(conversationHistory.begin());
+        }
+    }
+
+private:
+    bool isGreeting(const std::vector<std::string>& tokens) {
+        std::vector<std::string> greetings = {"hi", "hello", "hey", "greetings"};
+        for (const auto& token : tokens) {
+            if (std::find(greetings.begin(), greetings.end(), token) != greetings.end()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool isFarewell(const std::vector<std::string>& tokens) {
+        std::vector<std::string> farewells = {"bye", "goodbye", "farewell", "cya"};
+        for (const auto& token : tokens) {
+            if (std::find(farewells.begin(), farewells.end(), token) != farewells.end()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void initializeResponses() {
+        responses["greetings"] = {
+            "Hello! How can I help you today?",
+            "Hi there! What's on your mind?",
+            "Greetings! How are you doing?"
+        };
+
+        responses["farewells"] = {
+            "Goodbye! Have a great day!",
+            "See you later! Take care!",
+            "Farewell! It was nice talking to you!"
+        };
+
+        responses["positive"] = {
+            "That's wonderful to hear!",
+            "I'm glad things are going well!",
+            "Excellent! Keep up that positive spirit!"
+        };
+
+        responses["negative"] = {
+            "I'm sorry to hear that. How can I help?",
+            "That must be difficult. Would you like to talk about it?",
+            "I understand your frustration. Let's try to find a solution."
+        };
+
+        responses["default"] = {
+            "Tell me more about that.",
+            "Interesting perspective. Could you elaborate?",
+            "I see. What makes you feel that way?"
+        };
+    }
+
+    std::string getRandomResponse(const std::string& category) {
+        if (responses.find(category) != responses.end() && !responses[category].empty()) {
+            int index = rand() % responses[category].size();
+            return responses[category][index];
+        }
+        return "I'm not sure how to respond to that.";
+    }
+};
+
+// Main Chatbot class
+class Chatbot {
+private:
+    NLPProcessor nlp;
+    SentimentAnalyzer sentimentAnalyzer;
+    DialogueManager dialogueManager;
+
+public:
+    std::string processInput(const std::string& input) {
+        // Tokenize input
+        std::vector<std::string> tokens = nlp.tokenize(input);
+        
+        // Remove stop words
+        std::vector<std::string> filteredTokens = nlp.removeStopWords(tokens);
+        
+        // Analyze sentiment
+        double sentiment = sentimentAnalyzer.analyzeSentiment(filteredTokens);
+        
+        // Get appropriate response
+        std::string response = dialogueManager.getResponse(filteredTokens, sentiment);
+        
+        // Add to conversation history
+        dialogueManager.addToHistory(input);
+        
+        return response;
+    }
+};
+
+// Example usage
+int main() {
+    Chatbot chatbot;
+    std::string userInput;
+    
+    std::cout << "Chatbot: Hello! How can I help you today? (Type 'quit' to exit)\n";
+    
+    while (true) {
+        std::cout << "You: ";
+        std::getline(std::cin, userInput);
+        
+        if (userInput == "quit") {
+            break;
+        }
+        
+        std::string response = chatbot.processInput(userInput);
+        std::cout << "Chatbot: " << response << std::endl;
+    }
+    
+    return 0;
+}
